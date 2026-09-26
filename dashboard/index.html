@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MediPulse ICU — Smart Patient Telemetry Workstation</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+  <meta name="theme-color" content="#0a0f18" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+
+  <!-- TOP CLINICAL TELEMETRY HEADER -->
+  <header class="icu-header">
+    <div class="header-branding">
+      <div class="hospital-crest" onclick="openHospitalModal()" title="Click to customize hospital branding">
+        <i class="fa-solid fa-heart-pulse pulse-glow"></i>
+      </div>
+      <div class="hospital-info">
+        <div class="hospital-title">
+          <span id="displayHospitalName">MEDIPULSE HOSPITAL</span>
+          <span class="system-badge">ICU TELEMETRY</span>
+        </div>
+        <div class="ward-tag">
+          <span class="live-dot"></span>
+          <span id="displayWardBed">WARD 4A • BED #03</span> • <span id="displayCaregiver">DR. IN-CHARGE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENT INFO STRIP -->
+    <div class="patient-strip" onclick="openHospitalModal()" title="Click to edit patient details & ward">
+      <div class="patient-badge">
+        <i class="fa-solid fa-hospital-user"></i>
+        <div>
+          <span class="lbl">PATIENT NAME & MRN</span>
+          <span class="val" id="displayPatientName">Abdul Waris (MRN-4921)</span>
+        </div>
+      </div>
+      <div class="patient-badge">
+        <i class="fa-solid fa-id-card-clip"></i>
+        <div>
+          <span class="lbl">AGE / GENDER</span>
+          <span class="val" id="displayAgeGender">21 Yrs / Male</span>
+        </div>
+      </div>
+      <div class="patient-badge">
+        <i class="fa-solid fa-droplet"></i>
+        <div>
+          <span class="lbl">BLOOD GROUP</span>
+          <span class="val" id="displayBloodGroup">O+ POSITIVE</span>
+        </div>
+      </div>
+      <div class="patient-badge">
+        <i class="fa-solid fa-clock"></i>
+        <div>
+          <span class="lbl">LIVE TIME</span>
+          <span class="val font-mono" id="icuClock">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONNECTION & CONTROLS -->
+    <div class="header-actions">
+      <!-- Customize / Settings Button -->
+      <button class="icon-btn" onclick="openHospitalModal()" title="Customize Hospital, Patient & Alert Thresholds">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+
+      <!-- Audio Beeper Toggle -->
+      <button class="icon-btn" id="audioToggle" onclick="toggleAudio()" title="Toggle Heartbeat Audio Beep">
+        <i class="fa-solid fa-volume-xmark" id="audioIcon"></i>
+      </button>
+
+      <!-- Connect Hardware (USB / Bluetooth) -->
+      <button class="btn btn-connect" id="connectBtn" onclick="openConnectModal()">
+        <i class="fa-solid fa-link"></i> <span id="connectBtnText">Connect Hardware</span>
+      </button>
+
+      <!-- Demo Simulator Button -->
+      <button class="btn btn-demo" id="demoBtn" onclick="toggleDemoMode()">
+        <i class="fa-solid fa-flask"></i> <span id="demoBtnText">Demo Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- EMERGENCY ALERT TICKER -->
+  <div class="alert-ticker hidden" id="alertTicker">
+    <div class="alert-pulse-box"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="alert-content">
+      <strong id="alertHeading">CRITICAL PATIENT VITAL ALERT:</strong>
+      <span id="alertDetails">Heart rate abnormal. Immediate nurse verification required.</span>
+    </div>
+    <button class="alert-dismiss-btn" onclick="dismissAlert()">Acknowledge</button>
+  </div>
+
+  <!-- MAIN MONITOR CONTAINER -->
+  <div class="monitor-wrapper">
+
+    <!-- LEFT COLUMN: VITALS CARDS & CLINICAL SUMMARY -->
+    <div class="vitals-column">
+
+      <!-- TOP METRICS GRID (4 PRIMARY VITALS) -->
+      <div class="metrics-grid">
+
+        <!-- 1. HEART RATE -->
+        <div class="vital-card hr-card" id="cardHeartRate">
+          <div class="vital-header">
+            <div class="vital-title"><i class="fa-solid fa-heart-pulse"></i> HEART RATE</div>
+            <span class="vital-unit">BPM</span>
+          </div>
+          <div class="vital-main">
+            <div class="vital-value" id="valHR">--</div>
+            <div class="vital-sub">
+              <span class="vital-status status-normal" id="statusHR">Waiting</span>
+              <span class="vital-target" id="lblTargetHR">Limit: 50-120</span>
+            </div>
+          </div>
+          <div class="vital-sparkline"><canvas id="sparkHR"></canvas></div>
+        </div>
+
+        <!-- 2. SpO2 OXYGEN SATURATION -->
+        <div class="vital-card spo2-card" id="cardSpO2">
+          <div class="vital-header">
+            <div class="vital-title"><i class="fa-solid fa-lungs"></i> BLOOD OXYGEN</div>
+            <span class="vital-unit">SpO₂ %</span>
+          </div>
+          <div class="vital-main">
+            <div class="vital-value" id="valSpO2">--</div>
+            <div class="vital-sub">
+              <span class="vital-status status-normal" id="statusSpO2">Waiting</span>
+              <span class="vital-target" id="lblTargetSpO2">Limit: &gt; 92%</span>
+            </div>
+          </div>
+          <div class="vital-sparkline"><canvas id="sparkSpO2"></canvas></div>
+        </div>
+
+        <!-- 3. BODY TEMPERATURE -->
+        <div class="vital-card temp-card" id="cardTemp">
+          <div class="vital-header">
+            <div class="vital-title"><i class="fa-solid fa-temperature-half"></i> BODY TEMP</div>
+            <span class="vital-unit">°C / DHT11</span>
+          </div>
+          <div class="vital-main">
+            <div class="vital-value" id="valTemp">--</div>
+            <div class="vital-sub">
+              <span class="vital-status status-normal" id="statusTemp">Waiting</span>
+              <span class="vital-target" id="lblTargetTemp">Limit: &lt; 38.0°C</span>
+            </div>
+          </div>
+          <div class="vital-sparkline"><canvas id="sparkTemp"></canvas></div>
+        </div>
+
+        <!-- 4. BLOOD PRESSURE (ESTIMATED PTT) -->
+        <div class="vital-card bp-card" id="cardBP">
+          <div class="vital-header">
+            <div class="vital-title"><i class="fa-solid fa-gauge-high"></i> BLOOD PRESSURE</div>
+            <span class="vital-unit">mmHg (PTT)</span>
+          </div>
+          <div class="vital-main">
+            <div class="vital-value bp-display">
+              <span id="valSBP">--</span><span class="bp-slash">/</span><span id="valDBP">--</span>
+            </div>
+            <div class="vital-sub">
+              <span class="vital-status status-normal" id="statusBP">Waiting</span>
+              <span class="vital-target" id="lblTargetBP">Normal: &lt; 135/85</span>
+            </div>
+          </div>
+          <div class="vital-sparkline"><canvas id="sparkBP"></canvas></div>
+        </div>
+
+      </div> <!-- /metrics-grid -->
+
+      <!-- SECONDARY TELEMETRY CARDS (BED, MOTION, FALL, HUMIDITY) -->
+      <div class="secondary-grid">
+
+        <!-- BED OCCUPANCY (HC-SR04) -->
+        <div class="status-tile" id="tileBed">
+          <div class="tile-icon"><i class="fa-solid fa-bed"></i></div>
+          <div class="tile-body">
+            <span class="tile-label">BED OCCUPANCY (ULTRASONIC)</span>
+            <span class="tile-value" id="valBed">Awaiting Sensor</span>
+            <span class="tile-detail" id="detailBed">Proximity &lt; 30cm indicates patient in bed</span>
+          </div>
+        </div>
+
+        <!-- PATIENT MOTION (IR SENSOR) -->
+        <div class="status-tile" id="tileMotion">
+          <div class="tile-icon"><i class="fa-solid fa-person-walking"></i></div>
+          <div class="tile-body">
+            <span class="tile-label">PROXIMITY / MOTION (IR)</span>
+            <span class="tile-value" id="valMotion">No Motion</span>
+            <span class="tile-detail">Infrared Active-Low Detection</span>
+          </div>
+        </div>
+
+        <!-- FALL DETECTION (MPU-6050) -->
+        <div class="status-tile" id="tileFall">
+          <div class="tile-icon" id="fallIcon"><i class="fa-solid fa-shield-heart"></i></div>
+          <div class="tile-body">
+            <span class="tile-label">FALL RISK GUARD (MPU-6050)</span>
+            <span class="tile-value status-safe" id="valFall">PATIENT SAFE</span>
+            <span class="tile-detail">3-Axis Accelerometer Shock Monitoring</span>
+          </div>
+        </div>
+
+        <!-- ROOM HUMIDITY (DHT11) -->
+        <div class="status-tile" id="tileHum">
+          <div class="tile-icon"><i class="fa-solid fa-droplet-degree"></i></div>
+          <div class="tile-body">
+            <span class="tile-label">AMBIENT HUMIDITY</span>
+            <span class="tile-value" id="valHum">-- %</span>
+            <span class="tile-detail">Indoor comfort index 40 - 60%</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CONTINUOUS CLINICAL TREND HISTORY CHART -->
+      <div class="history-panel">
+        <div class="panel-header">
+          <div class="panel-title"><i class="fa-solid fa-chart-line"></i> CONTINUOUS PATIENT VITALS TELEMETRY TREND</div>
+          <div class="chart-controls">
+            <button class="chart-tab active" onclick="setChartTrend('hr', this)">Heart Rate</button>
+            <button class="chart-tab" onclick="setChartTrend('temp', this)">Temp</button>
+            <button class="chart-tab" onclick="setChartTrend('spo2', this)">SpO₂</button>
+            <button class="chart-tab" onclick="setChartTrend('bp', this)">Blood Pressure</button>
+          </div>
+        </div>
+        <div class="main-chart-wrapper">
+          <canvas id="telemetryHistoryChart"></canvas>
+        </div>
+      </div>
+
+    </div> <!-- /vitals-column -->
+
+    <!-- RIGHT COLUMN: OSCILLOSCOPE, DOCTOR NOTES & LOGS -->
+    <div class="oscilloscope-column">
+
+      <!-- OSCILLOSCOPE ECG SCREEN -->
+      <div class="ecg-monitor-frame">
+        <div class="ecg-header">
+          <div class="ecg-lead"><span class="lead-badge">LEAD II</span> REAL-TIME PHOTOPLETHYSMOGRAM (PPG)</div>
+          <div class="ecg-sweep-rate">SWEEP: 25 mm/s • GAIN: 10 mm/mV</div>
+        </div>
+        <div class="canvas-holder">
+          <canvas id="ecgOscilloscope"></canvas>
+          <div class="ecg-grid-overlay"></div>
+        </div>
+        <div class="ecg-footer">
+          <div class="footer-stat"><span>RAW PULSE:</span> <b id="valRawPulse">0</b></div>
+          <div class="footer-stat"><span>FILTER:</span> <b>0.5-5Hz</b></div>
+          <div class="footer-stat"><span>QRS SYNC:</span> <b id="valQRSSync" class="pulse-indicator">LEADS OFF</b></div>
+        </div>
+      </div>
+
+      <!-- CLINICAL ACTION BUTTONS -->
+      <div class="clinical-actions-card">
+        <button class="action-btn btn-nurse-call" onclick="triggerManualSOS()">
+          <i class="fa-solid fa-bell-concierge"></i> NURSE EMERGENCY CALL
+        </button>
+        <div class="action-row">
+          <button class="action-btn secondary-btn" onclick="exportClinicalDataCSV()">
+            <i class="fa-solid fa-file-csv"></i> Export CSV
+          </button>
+          <button class="action-btn secondary-btn" onclick="printDischargeReport()">
+            <i class="fa-solid fa-print"></i> Medical Report
+          </button>
+        </div>
+      </div>
+
+      <!-- DOCTOR'S CLINICAL OBSERVATIONS & TREATMENT NOTES -->
+      <div class="doctor-notes-card">
+        <div class="notes-header">
+          <span><i class="fa-solid fa-user-doctor"></i> CLINICAL OBSERVATIONS & NOTES</span>
+          <span class="badge-notes-count" id="notesCount">0 Notes</span>
+        </div>
+        <div class="notes-input-box">
+          <input type="text" id="doctorNoteInput" placeholder="Add diagnosis, medication or nurse observation..." onkeydown="if(event.key==='Enter') saveDoctorNote()" />
+          <button class="btn-add-note" onclick="saveDoctorNote()"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="notes-list" id="doctorNotesList">
+          <div class="note-empty">No clinical notes recorded for this patient yet.</div>
+        </div>
+      </div>
+
+      <!-- CLINICAL AUDIT LOG -->
+      <div class="audit-log-card">
+        <div class="log-header">
+          <span><i class="fa-solid fa-clipboard-list"></i> TELEMETRY AUDIT LOG</span>
+          <button class="clear-log-link" onclick="clearAuditLog()">Clear</button>
+        </div>
+        <div class="log-stream" id="auditLogStream">
+          <div class="log-row info">
+            <span class="log-t">INIT</span>
+            <span class="log-txt">Console initialized. Ready for patient monitoring.</span>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- /oscilloscope-column -->
+
+  </div> <!-- /monitor-wrapper -->
+
+  <!-- ============================================================ -->
+  <!-- MODAL: HOSPITAL, WARD & PATIENT CUSTOMIZATION                -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay hidden" id="hospitalModal">
+    <div class="modal-card wide-modal">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sliders"></i> Clinical Configuration & Patient Profile</h3>
+        <button class="close-modal" onclick="closeHospitalModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Tabs Header -->
+        <div class="modal-tabs">
+          <button class="modal-tab active" onclick="switchModalTab('tabHospital', this)">🏥 Hospital & Ward</button>
+          <button class="modal-tab" onclick="switchModalTab('tabPatient', this)">👤 Patient Profile</button>
+          <button class="modal-tab" onclick="switchModalTab('tabThresholds', this)">⚠️ Alert Thresholds</button>
+        </div>
+
+        <!-- Tab 1: Hospital & Ward -->
+        <div class="modal-tab-content active" id="tabHospital">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Hospital / Clinic Name</label>
+              <input type="text" id="cfgHospitalName" placeholder="e.g. Apollo Hospital / AIIMS / City Care" />
+            </div>
+            <div class="form-group">
+              <label>Department / ICU Wing</label>
+              <input type="text" id="cfgDepartment" placeholder="e.g. Intensive Care Unit (ICU) / Cardiology" />
+            </div>
+            <div class="form-group">
+              <label>Ward Name / Number</label>
+              <input type="text" id="cfgWard" placeholder="e.g. Ward 4A / General Ward 2" />
+            </div>
+            <div class="form-group">
+              <label>Bed / Room Number</label>
+              <input type="text" id="cfgBed" placeholder="e.g. Bed #03 / Room 104" />
+            </div>
+            <div class="form-group">
+              <label>Attending Doctor / In-Charge</label>
+              <input type="text" id="cfgDoctor" placeholder="e.g. Dr. A. W. Gurkhoo, MD" />
+            </div>
+            <div class="form-group">
+              <label>Nurse Station Contact Phone</label>
+              <input type="text" id="cfgNursePhone" placeholder="e.g. +91 98765 43210" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Patient Profile -->
+        <div class="modal-tab-content" id="tabPatient">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Patient Full Name</label>
+              <input type="text" id="cfgPatientName" placeholder="e.g. Abdul Waris Gurkhoo" />
+            </div>
+            <div class="form-group">
+              <label>Medical Record Number (MRN / Patient ID)</label>
+              <input type="text" id="cfgMRN" placeholder="e.g. MRN-2026-089" />
+            </div>
+            <div class="form-group">
+              <label>Age & Gender</label>
+              <input type="text" id="cfgAgeGender" placeholder="e.g. 21 / Male" />
+            </div>
+            <div class="form-group">
+              <label>Blood Group</label>
+              <select id="cfgBloodGroup">
+                <option value="O+ POSITIVE">O+ POSITIVE</option>
+                <option value="A+ POSITIVE">A+ POSITIVE</option>
+                <option value="B+ POSITIVE">B+ POSITIVE</option>
+                <option value="AB+ POSITIVE">AB+ POSITIVE</option>
+                <option value="O- NEGATIVE">O- NEGATIVE</option>
+                <option value="A- NEGATIVE">A- NEGATIVE</option>
+                <option value="B- NEGATIVE">B- NEGATIVE</option>
+                <option value="AB- NEGATIVE">AB- NEGATIVE</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label>Primary Diagnosis / Admission Reason</label>
+              <input type="text" id="cfgDiagnosis" placeholder="e.g. Cardiac Arrhythmia Telemetry & Post-Op Monitoring" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Clinical Thresholds -->
+        <div class="modal-tab-content" id="tabThresholds">
+          <p class="section-hint">Customize alarm trigger boundaries to alert staff when vitals cross thresholds:</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Max Heart Rate Alarm (BPM)</label>
+              <input type="number" id="cfgMaxHR" min="90" max="180" value="120" />
+            </div>
+            <div class="form-group">
+              <label>Min Heart Rate Alarm (BPM)</label>
+              <input type="number" id="cfgMinHR" min="30" max="65" value="50" />
+            </div>
+            <div class="form-group">
+              <label>Min SpO₂ Oxygen Alert (%)</label>
+              <input type="number" id="cfgMinSpO2" min="80" max="96" value="92" />
+            </div>
+            <div class="form-group">
+              <label>Fever Spike Alert Temp (°C)</label>
+              <input type="number" step="0.1" id="cfgMaxTemp" min="37.0" max="41.0" value="38.0" />
+            </div>
+            <div class="form-group">
+              <label>Max Systolic BP Alert (mmHg)</label>
+              <input type="number" id="cfgMaxBP" min="120" max="180" value="135" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeHospitalModal()">Cancel</button>
+        <button class="btn btn-save" onclick="saveConfiguration()"><i class="fa-solid fa-check"></i> Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: HARDWARE CONNECT (USB / BLUETOOTH)                    -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay hidden" id="connectModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-satellite-dish"></i> Connect Patient Hardware</h3>
+        <button class="close-modal" onclick="closeConnectModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Select connection interface for your Arduino Uno & HC-05 sensor hub:</p>
+
+        <!-- Option 1: Direct USB Cable (Web Serial) -->
+        <div class="connect-option" onclick="connectWebSerial()">
+          <div class="opt-icon usb"><i class="fa-brands fa-usb"></i></div>
+          <div class="opt-info">
+            <h4>USB Serial Cable (Plug & Play)</h4>
+            <p>Connect directly to Arduino Uno COM port at 9600 baud. Zero latency, highly reliable.</p>
+          </div>
+          <div class="opt-badge">Instant</div>
+        </div>
+
+        <!-- Option 2: Bluetooth HC-05 -->
+        <div class="connect-option" onclick="connectBluetoothOption()">
+          <div class="opt-icon bt"><i class="fa-brands fa-bluetooth-b"></i></div>
+          <div class="opt-info">
+            <h4>Wireless Bluetooth (HC-05)</h4>
+            <p>Connect wirelessly to paired HC-05 Bluetooth module from laptop or mobile browser.</p>
+          </div>
+          <div class="opt-badge">Wireless</div>
+        </div>
+
+        <!-- Option 3: Demo Simulator -->
+        <div class="connect-option" onclick="toggleDemoMode(); closeConnectModal();">
+          <div class="opt-icon sim"><i class="fa-solid fa-laptop-medical"></i></div>
+          <div class="opt-info">
+            <h4>Virtual Clinical Simulator (Demo)</h4>
+            <p>Simulate realistic patient vitals, cardiac spikes, and fall detection for presentations.</p>
+          </div>
+          <div class="opt-badge">Virtual</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

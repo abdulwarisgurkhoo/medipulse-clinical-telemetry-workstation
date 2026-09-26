@@ -1,0 +1,48 @@
+{
+  "id": "com.medipulse.telemetry",
+  "name": "MediPulse ICU — Smart Patient Telemetry Monitor",
+  "short_name": "MediPulse",
+  "description": "Real-time IoT hospital patient telemetry workstation with live vitals, ECG photoplethysmogram, fall risk detection, and emergency alerts.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0f18",
+  "theme_color": "#0a0f18",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": [
+    "health",
+    "medical",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Telemetry",
+      "url": "./index.html",
+      "description": "Open active patient vitals console"
+    },
+    {
+      "name": "Patient Profile & Ward",
+      "url": "./index.html#settings",
+      "description": "Configure hospital ward, bed, and patient profile"
+    }
+  ]
+}
